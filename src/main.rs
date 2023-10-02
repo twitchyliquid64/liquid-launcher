@@ -12,9 +12,9 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "liquid launcher",
         native_options,
-        Box::new(|cc| Box::new(liquid_launcher::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(liquid_launcher::Launcher::new(cc))),
     )
 }
 
@@ -31,7 +31,7 @@ fn main() {
             .start(
                 "the_canvas_id", // hardcode it
                 web_options,
-                Box::new(|cc| Box::new(liquid_launcher::TemplateApp::new(cc))),
+                Box::new(|cc| Box::new(liquid_launcher::Launcher::new(cc))),
             )
             .await
             .expect("failed to start eframe");
