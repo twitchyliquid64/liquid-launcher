@@ -42,6 +42,7 @@ impl TryFrom<Entry> for App {
 }
 
 impl App {
+    // This whole method is terrible, im sorry (not sorry)
     pub fn find_icon(&self, size: u16) -> Option<PathBuf> {
         match &self.icon_name {
             Some(ic) => {
@@ -62,6 +63,14 @@ impl App {
                         return Some(hicolor_png);
                     }
 
+                    let mut pixmaps_png = path.clone();
+                    pixmaps_png.pop(); // remove 'applications/'
+                    pixmaps_png.push("pixmaps");
+                    pixmaps_png.push(ic.to_owned() + ".png");
+                    if pixmaps_png.exists() {
+                        return Some(pixmaps_png);
+                    }
+
                     let mut hicolor_jpg = path.clone();
                     hicolor_jpg.pop(); // remove 'applications/'
                     hicolor_jpg.push("icons");
@@ -73,39 +82,81 @@ impl App {
                         return Some(hicolor_jpg);
                     }
 
-                    let mut hicolor_jpeg = path.clone();
-                    hicolor_jpeg.pop(); // remove 'applications/'
-                    hicolor_jpeg.push("icons");
-                    hicolor_jpeg.push("hicolor");
-                    hicolor_jpeg.push(size.to_string() + "x" + &size.to_string());
-                    hicolor_jpeg.push("apps");
-                    hicolor_jpeg.push(ic.to_owned() + ".jpeg");
-                    if hicolor_jpeg.exists() {
-                        return Some(hicolor_jpeg);
+                    let mut hicolor_svg = path.clone();
+                    hicolor_svg.pop(); // remove 'applications/'
+                    hicolor_svg.push("icons");
+                    hicolor_svg.push("hicolor");
+                    hicolor_svg.push("scalable");
+                    hicolor_svg.push("apps");
+                    hicolor_svg.push(ic.to_owned() + ".svg");
+                    if hicolor_svg.exists() {
+                        return Some(hicolor_svg);
                     }
 
-                    let mut pixmaps_png = path.clone();
-                    pixmaps_png.pop(); // remove 'applications/'
-                    pixmaps_png.push("pixmaps");
-                    pixmaps_png.push(ic.to_owned() + ".png");
-                    if pixmaps_png.exists() {
-                        return Some(pixmaps_png);
+                    let mut gnome_apps_png = path.clone();
+                    gnome_apps_png.pop(); // remove 'applications/'
+                    gnome_apps_png.push("icons");
+                    gnome_apps_png.push("gnome");
+                    gnome_apps_png.push(size.to_string() + "x" + &size.to_string());
+                    gnome_apps_png.push("apps");
+                    gnome_apps_png.push(ic.to_owned() + ".png");
+                    if gnome_apps_png.exists() {
+                        return Some(gnome_apps_png);
+                    }
+                    let mut gnome_devices_png = path.clone();
+                    gnome_devices_png.pop(); // remove 'applications/'
+                    gnome_devices_png.push("icons");
+                    gnome_devices_png.push("gnome");
+                    gnome_devices_png.push(size.to_string() + "x" + &size.to_string());
+                    gnome_devices_png.push("devices");
+                    gnome_devices_png.push(ic.to_owned() + ".png");
+                    if gnome_devices_png.exists() {
+                        return Some(gnome_devices_png);
                     }
 
-                    let mut gnome_png = path.clone();
-                    gnome_png.pop(); // remove 'applications/'
-                    gnome_png.push("icons");
-                    gnome_png.push("gnome");
-                    gnome_png.push(size.to_string() + "x" + &size.to_string());
-                    gnome_png.push("apps");
-                    gnome_png.push(ic.to_owned() + ".png");
-                    if gnome_png.exists() {
-                        return Some(gnome_png);
+                    let mut adwaita_actions_png = path.clone();
+                    adwaita_actions_png.pop(); // remove 'applications/'
+                    adwaita_actions_png.push("icons");
+                    adwaita_actions_png.push("Adwaita");
+                    adwaita_actions_png.push(size.to_string() + "x" + &size.to_string());
+                    adwaita_actions_png.push("actions");
+                    adwaita_actions_png.push(ic.to_owned() + "-symbolic.symbolic.png");
+                    if adwaita_actions_png.exists() {
+                        return Some(adwaita_actions_png);
+                    }
+                    let mut adwaita_actions_svg = path.clone();
+                    adwaita_actions_svg.pop(); // remove 'applications/'
+                    adwaita_actions_svg.push("icons");
+                    adwaita_actions_svg.push("Adwaita");
+                    adwaita_actions_svg.push("symbolic");
+                    adwaita_actions_svg.push("actions");
+                    adwaita_actions_svg.push(ic.to_owned() + "-symbolic.svg");
+                    if adwaita_actions_svg.exists() {
+                        return Some(adwaita_actions_svg);
                     }
                 }
                 None
             }
             None => None,
+        }
+    }
+
+    pub fn run(&self, quit: bool) {
+        use std::process::{exit, Command};
+
+        let split_command = shell_words::split(&self.cmd).unwrap();
+        let args: Vec<String> = split_command[1..]
+            .iter()
+            .filter(|a| !a.starts_with("%"))
+            .map(|a| a.clone())
+            .collect();
+
+        Command::new(split_command[0].trim_matches('\"'))
+            .args(args)
+            .spawn()
+            .unwrap();
+        if quit {
+            exit(0);
         }
     }
 }
@@ -127,10 +178,13 @@ impl AppList {
     #[cfg(target_os = "linux")]
     pub fn new() -> std::io::Result<Self> {
         let mut entries = Vec::new();
-        for path in APPLICATION_PATHS.iter() {
-            AppList::read_desktop_entries(&PathBuf::from(path), &mut entries)
+        let xdg = AppList::xdg_app_dirs();
+        if xdg.len() == 0 {
+            for path in APPLICATION_PATHS.iter() {
+                AppList::read_desktop_entries(&PathBuf::from(path), &mut entries)
+            }
         }
-        for path in AppList::xdg_app_dirs().into_iter() {
+        for path in xdg.into_iter() {
             AppList::read_desktop_entries(&path, &mut entries)
         }
 

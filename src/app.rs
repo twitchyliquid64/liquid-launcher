@@ -22,7 +22,7 @@ pub struct Launcher {
     #[serde(skip)]
     matching_app_idx: Option<Vec<usize>>,
     #[serde(skip)]
-    selected_idx: Option<usize>,
+    selected_idx: usize,
     #[serde(skip)]
     icons: Arc<Mutex<HashMap<String, PathBuf>>>,
     #[serde(skip)]
@@ -42,7 +42,7 @@ impl Default for Launcher {
             empty_icon: None,
             matcher: SkimMatcherV2::default(),
             matching_app_idx: None,
-            selected_idx: None,
+            selected_idx: 0,
         }
     }
 }
@@ -149,10 +149,8 @@ impl Launcher {
             }
         };
 
-        if let Some(idx) = self.selected_idx {
-            if self.matching_app_idx.as_ref().map(|v| v.len()).unwrap_or(0) <= idx {
-                self.selected_idx = Some(0);
-            }
+        if self.matching_app_idx.as_ref().map(|v| v.len()).unwrap_or(0) <= self.selected_idx {
+            self.selected_idx = 0;
         }
     }
 
@@ -168,14 +166,21 @@ impl Launcher {
 
         if let Some(icon_path) = icons.get(&app.name) {
             let uri = "file://".to_owned() + icon_path.to_str().unwrap();
-            ui.add(egui::Image::from_uri(uri).max_height(ICON_SIZE[0] as f32));
+            ui.add(
+                egui::Image::from_uri(uri)
+                    .max_height(ICON_SIZE[0] as f32)
+                    .shrink_to_fit(),
+            );
         } else {
             let tex_info = self.empty_icon.unwrap();
             use egui::widgets::ImageSource;
             ui.add(egui::Image::new(ImageSource::Texture(tex_info)));
         }
 
-        ui.selectable_label(selected, app.name.clone());
+        let label = ui.selectable_label(selected, app.name.clone());
+        if label.clicked() {
+            app.run(true);
+        }
     }
 }
 
@@ -203,34 +208,47 @@ impl eframe::App for Launcher {
                     input.request_focus();
                 }
 
-                let (down, up) = if input.has_focus() {
+                let (down, up, enter) = if input.has_focus() {
                     ui.input(|i| {
                         (
                             i.key_pressed(egui::Key::ArrowDown),
                             i.key_pressed(egui::Key::ArrowUp),
+                            i.key_pressed(egui::Key::Enter),
                         )
                     })
                 } else {
-                    (false, false)
+                    (false, false, false)
                 };
 
-                if input.changed() || down || up {
+                if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    std::process::exit(0);
+                }
+                if enter && self.matching_app_idx.as_ref().map(|v| v.len()).unwrap_or(0) > 0 {
+                    let apps_mutex = &*self.applications.lock().unwrap();
+                    match (apps_mutex, &self.matching_app_idx) {
+                        (Some(apps_list), Some(idxs)) => {
+                            if self.selected_idx < idxs.len() {
+                                apps_list.apps[idxs[self.selected_idx]].run(true);
+                            }
+                        }
+                        _ => {}
+                    }
+                    if self.input.ends_with("\n") {
+                        self.input.pop();
+                    }
+                } else if input.changed() || down || up {
                     self.handle_input_changed();
                 }
                 if down || up {
                     let length = self.matching_app_idx.as_ref().map(|v| v.len()).unwrap_or(0);
                     if length > 0 {
-                        if let Some(idx) = self.selected_idx.as_mut() {
-                            if down && idx.clone() < length - 1 {
-                                *idx += 1;
-                            } else if up && idx.clone() > 0 {
-                                *idx -= 1;
-                            }
-                        } else if down {
-                            self.selected_idx = Some(0);
+                        if down && self.selected_idx < length - 1 {
+                            self.selected_idx += 1;
+                        } else if up && self.selected_idx > 0 {
+                            self.selected_idx -= 1;
                         }
                     } else {
-                        self.selected_idx = None;
+                        self.selected_idx = 0;
                     }
                 }
             });
@@ -254,10 +272,7 @@ impl eframe::App for Launcher {
                                     for row in row_range {
                                         self.ui_for_app_entry(
                                             &apps_list.apps[idx[row]],
-                                            match self.selected_idx {
-                                                Some(i) => i == row,
-                                                None => false,
-                                            },
+                                            self.selected_idx == row,
                                             ctx,
                                             ui,
                                             icons_mutex,
@@ -275,10 +290,7 @@ impl eframe::App for Launcher {
                                     for row in row_range {
                                         self.ui_for_app_entry(
                                             &apps_list.apps[row],
-                                            match self.selected_idx {
-                                                Some(i) => i == row,
-                                                None => false,
-                                            },
+                                            self.selected_idx == row,
                                             ctx,
                                             ui,
                                             icons_mutex,
