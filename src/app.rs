@@ -26,8 +26,6 @@ pub struct Launcher {
     #[serde(skip)]
     icons: Arc<Mutex<HashMap<String, PathBuf>>>,
     #[serde(skip)]
-    empty_icon: Option<egui::load::SizedTexture>,
-    #[serde(skip)]
     matcher: SkimMatcherV2,
 }
 
@@ -39,7 +37,6 @@ impl Default for Launcher {
             focus_input: true,
             applications: Arc::new(Mutex::new(None)),
             icons: Arc::new(Mutex::new(HashMap::new())),
-            empty_icon: None,
             matcher: SkimMatcherV2::default(),
             matching_app_idx: None,
             selected_idx: 0,
@@ -97,56 +94,52 @@ impl Launcher {
             });
         }
 
-        let empty_icon = Some(egui::load::SizedTexture::from_handle(
-            &cc.egui_ctx.load_texture(
-                "empty",
-                egui::ColorImage::new(ICON_SIZE, egui::Color32::from_rgba_unmultiplied(0, 0, 0, 0)),
-                Default::default(),
-            ),
-        ));
-
         Self {
             icons,
             applications,
-            empty_icon,
             ..prev_state
         }
     }
 
+    fn compute_app_indices(
+        matcher: &SkimMatcherV2,
+        apps_list: &crate::sys_apps::AppList,
+        input: &String,
+    ) -> Vec<usize> {
+        if input.len() == 0 {
+            apps_list
+                .apps
+                .iter()
+                .enumerate()
+                .map(|(i, _app)| i)
+                .collect()
+        } else {
+            let mut idx_scores: Vec<(usize, i64)> = apps_list
+                .apps
+                .iter()
+                .enumerate()
+                .map(|(i, app)| match matcher.fuzzy_match(&app.name, input) {
+                    Some(score) => Some((i, score)),
+                    None => None,
+                })
+                .filter(|e| e.is_some())
+                .map(|e| e.unwrap())
+                .collect();
+
+            idx_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+            idx_scores.into_iter().map(|e| e.0).collect()
+        }
+    }
+
     fn handle_input_changed(&mut self) {
-        let matcher = SkimMatcherV2::default();
         self.matching_app_idx = match &*self.applications.lock().unwrap() {
             None => None,
-            Some(apps_list) => {
-                if self.input.len() == 0 {
-                    Some(
-                        apps_list
-                            .apps
-                            .iter()
-                            .enumerate()
-                            .map(|(i, _app)| i)
-                            .collect(),
-                    )
-                } else {
-                    let mut idx_scores: Vec<(usize, i64)> = apps_list
-                        .apps
-                        .iter()
-                        .enumerate()
-                        .map(
-                            |(i, app)| match matcher.fuzzy_match(&app.name, &self.input) {
-                                Some(score) => Some((i, score)),
-                                None => None,
-                            },
-                        )
-                        .filter(|e| e.is_some())
-                        .map(|e| e.unwrap())
-                        .collect();
-
-                    idx_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-                    Some(idx_scores.into_iter().map(|e| e.0).collect())
-                }
-            }
+            Some(apps_list) => Some(Launcher::compute_app_indices(
+                &self.matcher,
+                apps_list,
+                &self.input,
+            )),
         };
 
         if self.matching_app_idx.as_ref().map(|v| v.len()).unwrap_or(0) <= self.selected_idx {
@@ -168,13 +161,14 @@ impl Launcher {
             let uri = "file://".to_owned() + icon_path.to_str().unwrap();
             ui.add(
                 egui::Image::from_uri(uri)
-                    .max_height(ICON_SIZE[0] as f32)
-                    .shrink_to_fit(),
+                    .fit_to_exact_size(egui::Vec2::new(ICON_SIZE[0] as f32, ICON_SIZE[1] as f32)),
             );
         } else {
-            let tex_info = self.empty_icon.unwrap();
-            use egui::widgets::ImageSource;
-            ui.add(egui::Image::new(ImageSource::Texture(tex_info)));
+            //ui.label("🔆");
+            ui.add(
+                egui::Image::new(egui::include_image!("../unknown-app.png"))
+                    .fit_to_exact_size(egui::Vec2::new(ICON_SIZE[0] as f32, ICON_SIZE[1] as f32)),
+            );
         }
 
         let label = ui.selectable_label(selected, app.name.clone());
@@ -259,7 +253,7 @@ impl eframe::App for Launcher {
             {
                 let row_height = ui
                     .text_style_height(&egui::TextStyle::Body)
-                    .min(ICON_SIZE[1] as f32);
+                    .max(ICON_SIZE[1] as f32);
 
                 let apps_mutex = &*self.applications.lock().unwrap();
                 let icons_mutex = &*self.icons.lock().unwrap();
@@ -305,9 +299,14 @@ impl eframe::App for Launcher {
                 }
             }
 
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                egui::warn_if_debug_build(ui);
-            });
+            egui::warn_if_debug_build(
+                &mut ui.child_ui(
+                    ui.max_rect()
+                        .split_left_right_at_x(ui.max_rect().max.x - 155.)
+                        .1,
+                    egui::Layout::default(),
+                ),
+            );
         });
     }
 }
