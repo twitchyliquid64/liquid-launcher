@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 
+use crate::ext::{ImmediateExtra, NumFormatExtra};
+
 const ICON_SIZE: [usize; 2] = [32, 32];
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -27,6 +29,9 @@ pub struct Launcher {
     icons: Arc<Mutex<HashMap<String, PathBuf>>>,
     #[serde(skip)]
     matcher: SkimMatcherV2,
+
+    #[serde(skip)]
+    extras: Vec<Box<dyn ImmediateExtra>>,
 }
 
 impl Default for Launcher {
@@ -40,6 +45,7 @@ impl Default for Launcher {
             matcher: SkimMatcherV2::default(),
             matching_app_idx: None,
             selected_idx: 0,
+            extras: vec![Box::new(NumFormatExtra::default())],
         }
     }
 }
@@ -250,6 +256,15 @@ impl eframe::App for Launcher {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            let mut had_extra = false;
+            for ext in self.extras.iter_mut() {
+                had_extra |= ext.ui(&self.input, ctx, ui);
+            }
+
+            if had_extra {
+                ui.separator();
+            }
+
             {
                 let row_height = ui
                     .text_style_height(&egui::TextStyle::Body)

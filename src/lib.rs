@@ -1,6 +1,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 mod app;
+mod ext;
 pub use app::Launcher;
 
 pub mod sys_apps;
