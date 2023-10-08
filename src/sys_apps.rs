@@ -1,7 +1,5 @@
 use freedesktop_entry_parser::{parse_entry, Entry};
-use std::collections::HashMap;
 use std::env;
-use std::fs::File;
 use std::path::PathBuf;
 
 /// In addition to entries in $XDG_DATA_DIRS
