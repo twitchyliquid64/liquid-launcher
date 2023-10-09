@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 
-use crate::ext::{ImmediateExtra, NumFormatExtra};
+use crate::ext::{EquationExtra, ImmediateExtra, NumFormatExtra};
 
 const ICON_SIZE: [usize; 2] = [32, 32];
 
@@ -45,7 +45,10 @@ impl Default for Launcher {
             matcher: SkimMatcherV2::default(),
             matching_app_idx: None,
             selected_idx: 0,
-            extras: vec![Box::new(NumFormatExtra::default())],
+            extras: vec![
+                Box::new(NumFormatExtra::default()),
+                Box::new(EquationExtra::default()),
+            ],
         }
     }
 }

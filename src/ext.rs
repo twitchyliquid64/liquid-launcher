@@ -1,6 +1,8 @@
 use chumsky::prelude::*;
 use egui_extras::{Size, StripBuilder};
 
+use crate::eq;
+
 pub trait ImmediateExtra {
     fn ui(&mut self, input: &String, ctx: &egui::Context, ui: &mut egui::Ui) -> bool;
 }
@@ -74,6 +76,7 @@ impl ImmediateExtra for NumFormatExtra {
                         strip.cell(|ui| {
                             ui.allocate_space(egui::Vec2::new(2., 0.));
                             ui.heading("Integer representations");
+                            ui.label("end");
                         });
                         strip.cell(|ui| {
                             ui.push_id("numberz", |ui| {
@@ -81,11 +84,11 @@ impl ImmediateExtra for NumFormatExtra {
 
                                 let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
                                 let table = TableBuilder::new(ui)
-                                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                                    .cell_layout(egui::Layout::left_to_right(egui::Align::TOP))
                                     .column(Column::initial(100.0).at_least(40.0))
                                     .column(Column::initial(40.0))
-                                    .column(Column::remainder())
-                                    .auto_shrink([true, false]);
+                                    .column(Column::auto())
+                                    .auto_shrink([true, true]);
 
                                 table.body(|mut body| {
                                     body.row(text_height, |mut row| {
@@ -142,6 +145,8 @@ impl ImmediateExtra for NumFormatExtra {
                                         });
                                     });
                                 });
+
+                                ui.label("end");
                             });
                         });
                     });
@@ -168,4 +173,147 @@ fn parse_number<'a>() -> impl Parser<'a, &'a str, ParsedNumber> {
     });
 
     bin.or(hex).or(oct).or(int)
+}
+
+#[derive(Default, Debug)]
+pub struct EquationExtra {}
+
+impl EquationExtra {
+    fn parse(&self, input: &String) -> Option<eq::Expression> {
+        match eq::Expression::parse(input, false) {
+            Ok(p) => Some(p),
+            Err(_e) => None,
+        }
+    }
+}
+
+impl ImmediateExtra for EquationExtra {
+    fn ui(&mut self, input: &String, ctx: &egui::Context, ui: &mut egui::Ui) -> bool {
+        use crate::eq::Expression;
+
+        match self.parse(input) {
+            Some(eq) => {
+                if let Expression::Variable(_) = eq {
+                    return false;
+                }
+
+                StripBuilder::new(ui)
+                    .size(Size::relative(0.3)) // left cell
+                    .size(Size::remainder().at_least(200.0)) // right cell
+                    .horizontal(|mut strip| {
+                        strip.cell(|ui| {
+                            ui.allocate_space(egui::Vec2::new(2., 0.));
+                            ui.heading("Equation");
+                        });
+                        strip.cell(|ui| {
+                            ui.push_id("eqz", |ui| {
+                                use egui_extras::{Column, TableBuilder};
+
+                                let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
+                                let table = TableBuilder::new(ui)
+                                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                                    .column(Column::initial(100.0).at_least(40.0))
+                                    .column(Column::initial(40.0))
+                                    .column(Column::auto())
+                                    .auto_shrink([true, true]);
+
+                                table.body(|mut body| {
+                                    let mut simp = eq.clone();
+                                    simp.simplify();
+
+                                    body.row(text_height, |mut row| {
+                                        row.col(|ui| {
+                                            ui.strong("Simplified");
+                                        });
+                                        row.col(|ui| {
+                                            if ui.small_button("📋").clicked() {
+                                                ctx.output_mut(|o| {
+                                                    o.copied_text = format!("{}", simp)
+                                                });
+                                            }
+                                        });
+                                        row.col(|ui| {
+                                            ui.label(format!("{}", simp));
+                                        });
+                                    });
+                                    if let Expression::Rational(r, true) = simp {
+                                        let dec = Expression::Rational(r, false);
+
+                                        body.row(text_height, |mut row| {
+                                            row.col(|ui| {
+                                                ui.strong("As decimal");
+                                            });
+                                            row.col(|ui| {
+                                                if ui.small_button("📋").clicked() {
+                                                    ctx.output_mut(|o| {
+                                                        o.copied_text = format!("{}", dec)
+                                                    });
+                                                }
+                                            });
+                                            row.col(|ui| {
+                                                ui.label(format!("{}", dec));
+                                            });
+                                        });
+                                    }
+
+                                    body.row(text_height, |mut row| {
+                                        row.col(|ui| {
+                                            ui.strong("Input");
+                                        });
+                                        row.col(|ui| {});
+                                        row.col(|ui| {
+                                            ui.label(format!("{}", eq));
+                                        });
+                                    });
+
+                                    let mut vars = std::collections::BTreeMap::<
+                                        crate::eq::Variable,
+                                        usize,
+                                    >::new();
+                                    eq.walk(&mut |e| {
+                                        if let crate::eq::Expression::Variable(v) = e {
+                                            match vars.get_mut(&v) {
+                                                Some(count) => *count += 1,
+                                                None => {
+                                                    vars.insert(v.clone(), 1);
+                                                }
+                                            }
+                                        }
+                                        true
+                                    });
+                                    for var in vars.keys() {
+                                        let mut eq = eq.clone();
+                                        eq.simplify();
+                                        match eq.make_subject(&Expression::Variable(var.clone())) {
+                                            Ok(Expression::Equal(_, eq2)) => {
+                                                body.row(text_height, |mut row| {
+                                                    row.col(|ui| {
+                                                        ui.strong("Rearranged: ".to_string() + var);
+                                                    });
+                                                    row.col(|ui| {
+                                                        if ui.small_button("📋").clicked() {
+                                                            ctx.output_mut(|o| {
+                                                                o.copied_text = format!("{}", eq2)
+                                                            });
+                                                        }
+                                                    });
+                                                    row.col(|ui| {
+                                                        ui.label(format!("{}", eq2));
+                                                    });
+                                                });
+                                            }
+                                            Err(_) => {}
+                                            _ => {}
+                                        }
+                                    }
+                                });
+                            });
+                        });
+                    });
+
+                true
+            }
+            None => false,
+        }
+    }
 }

@@ -27,6 +27,9 @@ fuzzy-matcher = "0.3"
 shell-words = "1"
 chumsky = "1.0.0-alpha.4"
 
+heapless = "0.7"
+num = "0.4"
+
 # You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
 
