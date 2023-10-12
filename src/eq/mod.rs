@@ -835,6 +835,8 @@ fn decimal_representation(x: &Rational) -> Option<(Integer, usize)> {
 use std::fmt::{Display, Formatter};
 impl Display for Expression {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use num::ToPrimitive;
+
         match self {
             Expression::Neg(e) => write!(f, "-{}", e),
             Expression::Sqrt(a, pm) => match pm {
@@ -862,6 +864,8 @@ impl Display for Expression {
 
                         use num::Signed;
                         write!(f, "{}{}", if r.is_negative() { "-" } else { "" }, out)
+                    } else if let (Some(n), Some(d)) = (r.numer().to_f64(), r.denom().to_f64()) {
+                        write!(f, "{}", n / d)
                     } else {
                         write!(f, "({}/{})", r.numer(), r.denom())
                     }

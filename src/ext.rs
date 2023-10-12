@@ -1,4 +1,5 @@
 use chumsky::prelude::*;
+use egui_extras::{Column, TableBuilder};
 use egui_extras::{Size, StripBuilder};
 
 use crate::eq;
@@ -68,89 +69,75 @@ impl ImmediateExtra for NumFormatExtra {
         match self.parse(input) {
             Some(n) => {
                 //ui.allocate_space(egui::Vec2::new(2., 0.));
+                egui::CollapsingHeader::new("Integer representations")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        ui.push_id("numberz", |ui| {
+                            let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
+                            let table = TableBuilder::new(ui)
+                                .cell_layout(egui::Layout::left_to_right(egui::Align::TOP))
+                                .column(Column::exact(120.0))
+                                .column(Column::exact(50.0))
+                                .column(Column::remainder())
+                                .auto_shrink([true, true]);
 
-                StripBuilder::new(ui)
-                    .size(Size::relative(0.3)) // left cell
-                    .size(Size::remainder().at_least(200.0)) // right cell
-                    .horizontal(|mut strip| {
-                        strip.cell(|ui| {
-                            ui.allocate_space(egui::Vec2::new(2., 0.));
-                            ui.heading("Integer representations");
-                            ui.label("end");
-                        });
-                        strip.cell(|ui| {
-                            ui.push_id("numberz", |ui| {
-                                use egui_extras::{Column, TableBuilder};
-
-                                let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
-                                let table = TableBuilder::new(ui)
-                                    .cell_layout(egui::Layout::left_to_right(egui::Align::TOP))
-                                    .column(Column::initial(100.0).at_least(40.0))
-                                    .column(Column::initial(40.0))
-                                    .column(Column::auto())
-                                    .auto_shrink([true, true]);
-
-                                table.body(|mut body| {
-                                    body.row(text_height, |mut row| {
-                                        row.col(|ui| {
-                                            ui.strong("Decimal");
-                                        });
-                                        row.col(|ui| {
-                                            if ui.small_button("📋").clicked() {
-                                                ctx.output_mut(|o| o.copied_text = n.decimal_str());
-                                            }
-                                        });
-                                        row.col(|ui| {
-                                            ui.label(n.decimal_str());
-                                        });
+                            table.body(|mut body| {
+                                body.row(text_height, |mut row| {
+                                    row.col(|ui| {
+                                        ui.strong("Decimal");
                                     });
-                                    body.row(text_height, |mut row| {
-                                        row.col(|ui| {
-                                            ui.strong("Hex");
-                                        });
-                                        row.col(|ui| {
-                                            if ui.small_button("📋").clicked() {
-                                                ctx.output_mut(|o| o.copied_text = n.hex_str());
-                                            }
-                                        });
-                                        row.col(|ui| {
-                                            ui.label(n.hex_str());
-                                        });
+                                    row.col(|ui| {
+                                        if ui.small_button("📋").clicked() {
+                                            ctx.output_mut(|o| o.copied_text = n.decimal_str());
+                                        }
                                     });
-                                    body.row(text_height, |mut row| {
-                                        row.col(|ui| {
-                                            ui.strong("Oct");
-                                        });
-                                        row.col(|ui| {
-                                            if ui.small_button("📋").clicked() {
-                                                ctx.output_mut(|o| o.copied_text = n.oct_str());
-                                            }
-                                        });
-                                        row.col(|ui| {
-                                            ui.label(n.oct_str());
-                                        });
-                                    });
-                                    body.row(text_height, |mut row| {
-                                        row.col(|ui| {
-                                            ui.strong("Binary");
-                                        });
-                                        row.col(|ui| {
-                                            if ui.small_button("📋").clicked() {
-                                                ctx.output_mut(|o| o.copied_text = n.bin_str());
-                                            }
-                                        });
-                                        row.col(|ui| {
-                                            ui.style_mut().wrap = Some(false);
-                                            ui.label(n.bin_str());
-                                        });
+                                    row.col(|ui| {
+                                        ui.label(n.decimal_str());
                                     });
                                 });
-
-                                ui.label("end");
+                                body.row(text_height, |mut row| {
+                                    row.col(|ui| {
+                                        ui.strong("Hex");
+                                    });
+                                    row.col(|ui| {
+                                        if ui.small_button("📋").clicked() {
+                                            ctx.output_mut(|o| o.copied_text = n.hex_str());
+                                        }
+                                    });
+                                    row.col(|ui| {
+                                        ui.label(n.hex_str());
+                                    });
+                                });
+                                body.row(text_height, |mut row| {
+                                    row.col(|ui| {
+                                        ui.strong("Oct");
+                                    });
+                                    row.col(|ui| {
+                                        if ui.small_button("📋").clicked() {
+                                            ctx.output_mut(|o| o.copied_text = n.oct_str());
+                                        }
+                                    });
+                                    row.col(|ui| {
+                                        ui.label(n.oct_str());
+                                    });
+                                });
+                                body.row(text_height, |mut row| {
+                                    row.col(|ui| {
+                                        ui.strong("Binary");
+                                    });
+                                    row.col(|ui| {
+                                        if ui.small_button("📋").clicked() {
+                                            ctx.output_mut(|o| o.copied_text = n.bin_str());
+                                        }
+                                    });
+                                    row.col(|ui| {
+                                        ui.style_mut().wrap = Some(false);
+                                        ui.label(n.bin_str());
+                                    });
+                                });
                             });
                         });
                     });
-
                 true
             }
             None => false,
@@ -197,117 +184,110 @@ impl ImmediateExtra for EquationExtra {
                     return false;
                 }
 
-                StripBuilder::new(ui)
-                    .size(Size::relative(0.3)) // left cell
-                    .size(Size::remainder().at_least(200.0)) // right cell
-                    .horizontal(|mut strip| {
-                        strip.cell(|ui| {
-                            ui.allocate_space(egui::Vec2::new(2., 0.));
-                            ui.heading("Equation");
-                        });
-                        strip.cell(|ui| {
-                            ui.push_id("eqz", |ui| {
-                                use egui_extras::{Column, TableBuilder};
+                let mut vars = std::collections::BTreeMap::<crate::eq::Variable, usize>::new();
+                eq.walk(&mut |e| {
+                    if let crate::eq::Expression::Variable(v) = e {
+                        match vars.get_mut(&v) {
+                            Some(count) => *count += 1,
+                            None => {
+                                vars.insert(v.clone(), 1);
+                            }
+                        }
+                    }
+                    true
+                });
 
-                                let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
-                                let table = TableBuilder::new(ui)
-                                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                                    .column(Column::initial(100.0).at_least(40.0))
-                                    .column(Column::initial(40.0))
-                                    .column(Column::auto())
-                                    .auto_shrink([true, true]);
+                egui::CollapsingHeader::new("Equation")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
-                                table.body(|mut body| {
-                                    let mut simp = eq.clone();
-                                    simp.simplify();
+                        let inp = crate::eqwidget::SizedExpression::layout(ui, &eq);
+                        let mut simp = eq.clone();
+                        simp.simplify();
+                        let simpW = crate::eqwidget::SizedExpression::layout(ui, &simp);
+                        let var_eqs: Vec<_> = vars
+                            .keys()
+                            .map(|var| {
+                                let mut eq = simp.clone();
+                                match eq.make_subject(&Expression::Variable(var.clone())) {
+                                    Ok(Expression::Equal(_, eq2)) => {
+                                        let eqW =
+                                            crate::eqwidget::SizedExpression::layout(ui, &eq2);
 
-                                    body.row(text_height, |mut row| {
-                                        row.col(|ui| {
-                                            ui.strong("Simplified");
-                                        });
-                                        row.col(|ui| {
-                                            if ui.small_button("📋").clicked() {
-                                                ctx.output_mut(|o| {
-                                                    o.copied_text = format!("{}", simp)
-                                                });
-                                            }
-                                        });
-                                        row.col(|ui| {
-                                            ui.label(format!("{}", simp));
-                                        });
-                                    });
-                                    if let Expression::Rational(r, true) = simp {
-                                        let dec = Expression::Rational(r, false);
-
-                                        body.row(text_height, |mut row| {
-                                            row.col(|ui| {
-                                                ui.strong("As decimal");
-                                            });
-                                            row.col(|ui| {
-                                                if ui.small_button("📋").clicked() {
-                                                    ctx.output_mut(|o| {
-                                                        o.copied_text = format!("{}", dec)
-                                                    });
-                                                }
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(format!("{}", dec));
-                                            });
-                                        });
+                                        Some((var, eqW, eq2))
                                     }
+                                    Err(_) => None,
+                                    _ => None,
+                                }
+                            })
+                            .filter(|e| e.is_some())
+                            .map(|e| e.unwrap())
+                            .collect();
 
-                                    body.row(text_height, |mut row| {
-                                        row.col(|ui| {
-                                            ui.strong("Input");
-                                        });
-                                        row.col(|ui| {});
-                                        row.col(|ui| {
-                                            ui.label(format!("{}", eq));
-                                        });
-                                    });
+                        let table = TableBuilder::new(ui)
+                            .cell_layout(egui::Layout::left_to_right(egui::Align::TOP))
+                            .column(Column::exact(120.0))
+                            .column(Column::exact(50.0))
+                            .column(Column::remainder())
+                            .auto_shrink([true, true]);
 
-                                    let mut vars = std::collections::BTreeMap::<
-                                        crate::eq::Variable,
-                                        usize,
-                                    >::new();
-                                    eq.walk(&mut |e| {
-                                        if let crate::eq::Expression::Variable(v) = e {
-                                            match vars.get_mut(&v) {
-                                                Some(count) => *count += 1,
-                                                None => {
-                                                    vars.insert(v.clone(), 1);
-                                                }
-                                            }
-                                        }
-                                        true
-                                    });
-                                    for var in vars.keys() {
-                                        let mut eq = eq.clone();
-                                        eq.simplify();
-                                        match eq.make_subject(&Expression::Variable(var.clone())) {
-                                            Ok(Expression::Equal(_, eq2)) => {
-                                                body.row(text_height, |mut row| {
-                                                    row.col(|ui| {
-                                                        ui.strong("Rearranged: ".to_string() + var);
-                                                    });
-                                                    row.col(|ui| {
-                                                        if ui.small_button("📋").clicked() {
-                                                            ctx.output_mut(|o| {
-                                                                o.copied_text = format!("{}", eq2)
-                                                            });
-                                                        }
-                                                    });
-                                                    row.col(|ui| {
-                                                        ui.label(format!("{}", eq2));
-                                                    });
-                                                });
-                                            }
-                                            Err(_) => {}
-                                            _ => {}
-                                        }
-                                    }
+                        table.body(|mut body| {
+                            body.row(inp.dims().y, |mut row| {
+                                row.col(|ui| {
+                                    ui.strong("Input");
+                                });
+                                row.col(|ui| {});
+                                row.col(|ui| {
+                                    inp.ui(ui);
                                 });
                             });
+
+                            body.row(simpW.dims().y, |mut row| {
+                                row.col(|ui| {
+                                    ui.strong("Simplified");
+                                });
+                                row.col(|ui| {
+                                    if ui.small_button("📋").clicked() {
+                                        ctx.output_mut(|o| o.copied_text = format!("{}", simp));
+                                    }
+                                });
+                                row.col(|ui| {
+                                    simpW.ui(ui);
+                                });
+                            });
+                            if let Expression::Rational(r, true) = &simp {
+                                let dec = Expression::Rational(r.clone(), false);
+                                body.row(text_height, |mut row| {
+                                    row.col(|ui| {
+                                        ui.strong("As decimal");
+                                    });
+                                    row.col(|ui| {
+                                        if ui.small_button("📋").clicked() {
+                                            ctx.output_mut(|o| o.copied_text = format!("{}", dec));
+                                        }
+                                    });
+                                    row.col(|ui| {
+                                        ui.label(format!("{}", dec));
+                                    });
+                                });
+                            }
+
+                            for (var, eqW, eq) in var_eqs {
+                                body.row(eqW.dims().y, |mut row| {
+                                    row.col(|ui| {
+                                        ui.strong("Rearranged: ".to_string() + var);
+                                    });
+                                    row.col(|ui| {
+                                        if ui.small_button("📋").clicked() {
+                                            ctx.output_mut(|o| o.copied_text = format!("{}", eq));
+                                        }
+                                    });
+                                    row.col(|ui| {
+                                        eqW.ui(ui);
+                                    });
+                                });
+                            }
                         });
                     });
 

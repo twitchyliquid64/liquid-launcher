@@ -261,7 +261,11 @@ impl eframe::App for Launcher {
         egui::CentralPanel::default().show(ctx, |ui| {
             let mut had_extra = false;
             for ext in self.extras.iter_mut() {
-                had_extra |= ext.ui(&self.input, ctx, ui);
+                let had_content = ext.ui(&self.input, ctx, ui);
+                if had_content {
+                    ui.allocate_space(egui::Vec2::new(0., 2.));
+                }
+                had_extra |= had_content;
             }
 
             if had_extra {
