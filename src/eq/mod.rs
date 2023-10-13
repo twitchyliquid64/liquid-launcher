@@ -4,8 +4,8 @@ pub mod solve;
 
 use std::collections::HashMap;
 
-/// Algebraic unknown, identified by a name up to 8 characters long.
-pub type Variable = heapless::String<8>;
+/// Algebraic unknown, identified by a name up to 12 characters long.
+pub type Variable = heapless::String<12>;
 
 /// Algebraic integer.
 pub type Integer = num::bigint::BigInt;
@@ -804,6 +804,7 @@ impl Expression {
 fn decimal_representation(x: &Rational) -> Option<(Integer, usize)> {
     let mut denom = x.denom().clone();
 
+    // See: https://cs.stackexchange.com/questions/124673/algorithm-turining-a-fraction-into-a-decimal-expansion-string
     let [power_of_2, power_of_5] = [2, 5].map(|n| {
         let mut power = 0;
 
@@ -817,14 +818,13 @@ fn decimal_representation(x: &Rational) -> Option<(Integer, usize)> {
 
     use num::{One, Zero};
     if denom.is_one() {
-        let multiplier = if power_of_2 < power_of_5 {
-            Integer::from(2).pow(power_of_5 - power_of_2)
-        } else {
-            Integer::from(5).pow(power_of_2 - power_of_5)
-        };
-
         Some((
-            x.numer() * multiplier,
+            x.numer()
+                * if power_of_2 < power_of_5 {
+                    Integer::from(2).pow(power_of_5 - power_of_2)
+                } else {
+                    Integer::from(5).pow(power_of_2 - power_of_5)
+                },
             std::cmp::max(power_of_2, power_of_5) as usize,
         ))
     } else {
